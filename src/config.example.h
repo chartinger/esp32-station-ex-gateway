@@ -13,4 +13,4 @@
 
 #define MQTT_TOPIC_IN "station/in"
 #define MQTT_TOPIC_OUT "station/out"
-#define MQTT_TOPIC_status "station/status"
+#define MQTT_TOPIC_STATUS "station/status"
