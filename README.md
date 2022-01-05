@@ -2,7 +2,7 @@
 
 Firmware for an ESP32 (D1 Mini Format) to
 
-* connect CommandStation-EX to a MQTT broker
+* connect CommandStation-EX to an MQTT broker
 * act as a Websocket server
 
 ### Notes

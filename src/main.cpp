@@ -1,10 +1,16 @@
+#include "./config.h"
+
 #include <Arduino.h>
 #include <WiFi.h>
+
+#ifdef MQTT_ENABLED
 #include <PubSubClient.h>
+#endif
+
+#ifdef WEBSOCKET_ENABLED
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-
-#include "./config.h"
+#endif
 
 #define RX 16
 #define TX 17
@@ -16,15 +22,29 @@
 
 const char* ssid = WLAN_SSID;
 const char* password = WLAN_PASSWORD;
-const char* mqtt_server = MQTT_BROKER_URL;
 
 uint16_t serialInputBufferIndex = 0;
 char serialInputBuffer[COMMAND_BUFFER_SIZE];
 char serialOutputBuffer[COMMAND_OUT_BUFFER_SIZE];
 
 WiFiClient espClient;
-PubSubClient mqttClient(espClient);
 
+#ifdef MQTT_ENABLED
+PubSubClient mqttClient(espClient);
+#endif
+
+void setupWifi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(WiFi.localIP());
+}
+
+#ifdef WEBSOCKET_ENABLED
 AsyncWebServer webserver(80);
 AsyncWebSocket ws("/ws");
 
@@ -35,7 +55,6 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     CsExSerial.println((char*)data);
   }
 }
-
 
 void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
              void *arg, uint8_t *data, size_t len) {
@@ -61,18 +80,9 @@ void setupWebsocket() {
   webserver.addHandler(&ws);
   webserver.begin();
 }
+#endif
 
-void setupWifi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println(WiFi.localIP());
-}
-
+#ifdef MQTT_ENABLED
 void handleMqttMessage(char* topic, byte* payload, unsigned int length) {
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
@@ -82,18 +92,8 @@ void handleMqttMessage(char* topic, byte* payload, unsigned int length) {
 }
 
 void setupMqtt() {
-  mqttClient.setServer(mqtt_server, MQTT_BROKER_PORT);
+  mqttClient.setServer(MQTT_BROKER_URL, MQTT_BROKER_PORT);
   mqttClient.setCallback(handleMqttMessage);
-}
-
-void setup() {
-  Serial.begin(115200);
-  CsExSerial.begin(115200, SERIAL_8N1, RX, TX);
-  Serial.println("ESP32S Online");
-  pinMode(LED_BUILTIN, OUTPUT);
-  setupWifi();
-  setupMqtt();
-  setupWebsocket();
 }
 
 void reconnect() {
@@ -114,13 +114,29 @@ void reconnect() {
     }
   }
 }
+#endif
+
+void setup() {
+  Serial.begin(115200);
+  CsExSerial.begin(115200, SERIAL_8N1, RX, TX);
+  Serial.println("ESP32S Online");
+  pinMode(LED_BUILTIN, OUTPUT);
+  setupWifi();
+#ifdef MQTT_ENABLED
+  setupMqtt();
+#endif
+#ifdef WEBSOCKET_ENABLED
+  setupWebsocket();
+#endif
+}
 
 void loop() {
+#ifdef MQTT_ENABLED
   if (!mqttClient.connected()) {
     reconnect();
   }
   mqttClient.loop();
-
+#endif
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
   while (CsExSerial.available()) {
     char character = CsExSerial.read() & 0xFF;
@@ -132,15 +148,21 @@ void loop() {
         continue;
       }
       serialInputBuffer[serialInputBufferIndex] = '\0';
+#ifdef MQTT_ENABLED
       mqttClient.publish(MQTT_TOPIC_OUT, serialInputBuffer);
+#endif
+#ifdef WEBSOCKET_ENABLED
       ws.textAll(serialInputBuffer);
+#endif
       serialInputBufferIndex = 0;
       continue;
     }
     serialInputBuffer[serialInputBufferIndex] = character;
     serialInputBufferIndex++;
   }
+#ifdef WEBSOCKET_ENABLED
   ws.cleanupClients();
+#endif
   // while (Serial.available()) {
   //   CsExSerial.print(char(Serial.read()));
   // }

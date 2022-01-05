@@ -3,9 +3,11 @@
 #define WLAN_PASSWORD "WLAN_PASSWORD"
 
 // WEBSOCKET
+#define WEBSOCKET_ENABLED
 #define WS_PORT 80
 
 // MQTT
+#define MQTT_ENABLED
 #define MQTT_BROKER_URL "url.to.your.broker"
 #define MQTT_BROKER_PORT 1883
 
