@@ -32,8 +32,6 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    Serial.print("WEBSOCKET:");
-    Serial.println((char*)data);
     CsExSerial.println((char*)data);
   }
 }
@@ -76,9 +74,6 @@ void setupWifi() {
 }
 
 void handleMqttMessage(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
     CsExSerial.print((char)payload[i]);
@@ -102,24 +97,19 @@ void setup() {
 }
 
 void reconnect() {
-  // Loop until we're reconnected
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
+    String clientId = MQTT_CLIENT_ID_PREFIX;
     clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (mqttClient.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str(), NULL, NULL, MQTT_TOPIC_STATUS, 0, true, "offline")) {
       Serial.println("connected");
-      // Once connected, publish an announcement...
-      // client.publish("outTopic", "hello world");
-      // ... and resubscribe
+      mqttClient.publish(MQTT_TOPIC_STATUS, "online", true);
+      mqttClient.publish(MQTT_TOPIC_STATUS, WiFi.localIP().toString().c_str());
       mqttClient.subscribe(MQTT_TOPIC_IN);
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
       delay(5000);
     }
   }
@@ -134,7 +124,6 @@ void loop() {
   digitalWrite(LED_BUILTIN, HIGH);    // turn the LED off by making the voltage LOW
   while (CsExSerial.available()) {
     char character = CsExSerial.read() & 0xFF;
-    Serial.print(character);
     if(character == '\r') {
       continue;
     }
@@ -143,10 +132,6 @@ void loop() {
         continue;
       }
       serialInputBuffer[serialInputBufferIndex] = '\0';
-      Serial.println();
-      Serial.print("--");
-      Serial.print(serialInputBuffer);
-      Serial.println("--");
       mqttClient.publish(MQTT_TOPIC_OUT, serialInputBuffer);
       ws.textAll(serialInputBuffer);
       serialInputBufferIndex = 0;
