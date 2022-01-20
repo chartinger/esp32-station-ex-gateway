@@ -29,7 +29,12 @@
 #define COMMAND_BUFFER_SIZE 150
 #define COMMAND_OUT_BUFFER_SIZE 150
 
+#ifdef ESP32
+#define CsExSerial Serial2
+#endif
+#ifdef ESP8266
 #define CsExSerial Serial
+#endif
 
 const char* ssid = WLAN_SSID;
 const char* password = WLAN_PASSWORD;
