@@ -23,6 +23,19 @@
   #include <ESPAsyncWebServer.h>
 #endif
 
+#ifdef MDNS_HOSTNAME
+  #ifdef ESP32
+  #include <ESPmDNS.h>
+  #endif
+  #ifdef ESP8266
+  #include <ESP8266mDNS.h> 
+  #endif
+#endif
+
+#ifdef OTA_ENABLED
+  #include <ArduinoOTA.h>
+#endif
+
 #define RX 16
 #define TX 17
 
@@ -58,6 +71,16 @@ void setupWifi() {
     // Serial.print(".");
   }
   // Serial.println(WiFi.localIP());
+#ifdef MDNS_HOSTNAME
+  MDNS.begin(MDNS_HOSTNAME);
+#endif
+
+#ifdef OTA_ENABLED
+#ifdef OTA_PASSWORD
+  ArduinoOTA.setPassword((const char *)OTA_PASSWORD);
+#endif
+  ArduinoOTA.begin();
+#endif
 }
 
 #ifdef WEBSOCKET_ENABLED
@@ -184,6 +207,11 @@ void loop() {
 #ifdef WEBSOCKET_ENABLED
   ws.cleanupClients();
 #endif
+
+#ifdef OTA_ENABLED
+  ArduinoOTA.handle();
+#endif
+
   // while (Serial.available()) {
   //   CsExSerial.print(char(Serial.read()));
   // }
