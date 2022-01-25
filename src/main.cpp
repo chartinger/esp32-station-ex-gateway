@@ -75,6 +75,12 @@ void setupWifi() {
   MDNS.begin(MDNS_HOSTNAME);
 #endif
 
+#ifdef MDNS_HOSTNAME
+#ifdef OTA_ENABLED
+ArduinoOTA.setHostname(MDNS_HOSTNAME);
+#endif
+#endif
+
 #ifdef OTA_ENABLED
 #ifdef OTA_PASSWORD
   ArduinoOTA.setPassword((const char *)OTA_PASSWORD);
@@ -161,9 +167,8 @@ void setup() {
     CsExSerial.begin(115200, SERIAL_8N1, RX, TX);
   #endif
   #ifdef ESP8266
-    CsExSerial.begin(115200, SERIAL_8N1);
+    CsExSerial.begin(115200);
   #endif
-  // Serial.println("ESP32S Online");
   pinMode(LED_BUILTIN, OUTPUT);
   setupWifi();
 #ifdef MQTT_ENABLED
