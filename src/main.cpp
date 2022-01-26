@@ -1,15 +1,39 @@
 #include "./config.h"
 
 #include <Arduino.h>
+
+#ifdef ESP32
 #include <WiFi.h>
+#endif
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#endif
 
 #ifdef MQTT_ENABLED
 #include <PubSubClient.h>
 #endif
 
 #ifdef WEBSOCKET_ENABLED
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
+  #ifdef ESP32
+  #include <AsyncTCP.h>
+  #endif
+  #ifdef ESP8266
+  #include <ESPAsyncTCP.h>
+  #endif
+  #include <ESPAsyncWebServer.h>
+#endif
+
+#ifdef MDNS_HOSTNAME
+  #ifdef ESP32
+  #include <ESPmDNS.h>
+  #endif
+  #ifdef ESP8266
+  #include <ESP8266mDNS.h> 
+  #endif
+#endif
+
+#ifdef OTA_ENABLED
+  #include <ArduinoOTA.h>
 #endif
 
 #define RX 16
@@ -18,7 +42,12 @@
 #define COMMAND_BUFFER_SIZE 150
 #define COMMAND_OUT_BUFFER_SIZE 150
 
+#ifdef ESP32
 #define CsExSerial Serial2
+#endif
+#ifdef ESP8266
+#define CsExSerial Serial
+#endif
 
 const char* ssid = WLAN_SSID;
 const char* password = WLAN_PASSWORD;
@@ -39,9 +68,25 @@ void setupWifi() {
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    // Serial.print(".");
   }
-  Serial.println(WiFi.localIP());
+  // Serial.println(WiFi.localIP());
+#ifdef MDNS_HOSTNAME
+  MDNS.begin(MDNS_HOSTNAME);
+#endif
+
+#ifdef MDNS_HOSTNAME
+#ifdef OTA_ENABLED
+ArduinoOTA.setHostname(MDNS_HOSTNAME);
+#endif
+#endif
+
+#ifdef OTA_ENABLED
+#ifdef OTA_PASSWORD
+  ArduinoOTA.setPassword((const char *)OTA_PASSWORD);
+#endif
+  ArduinoOTA.begin();
+#endif
 }
 
 #ifdef WEBSOCKET_ENABLED
@@ -60,10 +105,10 @@ void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsE
              void *arg, uint8_t *data, size_t len) {
   switch (type) {
     case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      // Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
       break;
     case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
+      // Serial.printf("WebSocket client #%u disconnected\n", client->id());
       break;
     case WS_EVT_DATA:
       handleWebSocketMessage(arg, data, len);
@@ -84,8 +129,8 @@ void setupWebsocket() {
 
 #ifdef MQTT_ENABLED
 void handleMqttMessage(char* topic, byte* payload, unsigned int length) {
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  for (unsigned int i = 0; i < length; i++) {
+    // Serial.print((char)payload[i]);
     CsExSerial.print((char)payload[i]);
   }
   CsExSerial.println();
@@ -98,18 +143,18 @@ void setupMqtt() {
 
 void reconnect() {
   while (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    // Serial.print("Attempting MQTT connection...");
     String clientId = MQTT_CLIENT_ID_PREFIX;
     clientId += String(random(0xffff), HEX);
     if (mqttClient.connect(clientId.c_str(), NULL, NULL, MQTT_TOPIC_STATUS, 0, true, "offline")) {
-      Serial.println("connected");
+      // Serial.println("connected");
       mqttClient.publish(MQTT_TOPIC_STATUS, "online", true);
       mqttClient.publish(MQTT_TOPIC_STATUS, WiFi.localIP().toString().c_str());
       mqttClient.subscribe(MQTT_TOPIC_IN);
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(" try again in 5 seconds");
+      // Serial.print("failed, rc=");
+      // Serial.print(mqttClient.state());
+      // Serial.println(" try again in 5 seconds");
       delay(5000);
     }
   }
@@ -117,9 +162,13 @@ void reconnect() {
 #endif
 
 void setup() {
-  Serial.begin(115200);
-  CsExSerial.begin(115200, SERIAL_8N1, RX, TX);
-  Serial.println("ESP32S Online");
+  // Serial.begin(115200);
+  #ifdef ESP32
+    CsExSerial.begin(115200, SERIAL_8N1, RX, TX);
+  #endif
+  #ifdef ESP8266
+    CsExSerial.begin(115200);
+  #endif
   pinMode(LED_BUILTIN, OUTPUT);
   setupWifi();
 #ifdef MQTT_ENABLED
@@ -163,6 +212,11 @@ void loop() {
 #ifdef WEBSOCKET_ENABLED
   ws.cleanupClients();
 #endif
+
+#ifdef OTA_ENABLED
+  ArduinoOTA.handle();
+#endif
+
   // while (Serial.available()) {
   //   CsExSerial.print(char(Serial.read()));
   // }

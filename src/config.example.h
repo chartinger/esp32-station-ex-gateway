@@ -16,3 +16,8 @@
 #define MQTT_TOPIC_IN "station/in"
 #define MQTT_TOPIC_OUT "station/out"
 #define MQTT_TOPIC_STATUS "station/status"
+
+#define MDNS_HOSTNAME "dcc-01"
+
+#define OTA_ENABLED
+#define OTA_PASSWORD "otapassword"
